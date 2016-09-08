@@ -1,6 +1,10 @@
 #!/usr/bin/env python2
 
 from Bio import SeqIO
+from Bio.Seq import Seq
+import sys
+
+from Bio import SeqIO
 import sys
 
 class DeBruijn:
@@ -35,11 +39,47 @@ class DeBruijn:
   def graph(self):
     g = {}
     for k,v in self.kmers.iteritems():
+      if v < self.cut:
+        continue
       g[k] = []
       for l in ['A', 'C', 'G', 'T']:
         if k[1:]+l in self.kmers:
           g[k].append(k[1:]+l)
     return g            
+  
+  def contigs(self):
+    comp = {'A':'T','C':'G','G':'C','T':'A'}
+    contigs = {}
+    while(len(self.graph)>1):
+       
+      origin,links = self.graph.popitem()
+      rc = str(Seq(origin).reverse_complement())
+      
+      back_links = self.graph[rc]
+
+      #go back untill find the start
+      while(len(back_links)==1):
+        rc = back_links[0]
+        back_links = self.graph[rc]
+
+      print rc
+      print back_links
+      contig = str(Seq(rc).reverse_complement())
+      if not contig == origin:
+        for_links = self.graph[contig]
+      
+        while (len(for_links)==1):
+          contig += for_links[0][-1]
+          links = self.graph.pop(links[0])
+      
+      
+      while(len(links)==1):
+        contig += links[0][-1]
+        self.graph.pop(links[0],[])
+      
+      print contig
+      contigs[contig] = links
+    return contigs 
 
 try:
   kvalue = int(sys.argv[2])
@@ -51,5 +91,4 @@ except IOError as e:
   print e
   sys.exit(1)
 
-print graph
-
+graph.contigs()
