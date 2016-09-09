@@ -7,9 +7,6 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import copy
 
-from Bio import SeqIO
-import sys
-
 class DeBruijn:
   def __init__(self, reads, klength, cutoff):
     self.k = klength
@@ -92,20 +89,43 @@ except IOError as e:
   print e
   sys.exit(1)
 
+f = open('reads.fa', 'w')
 G = nx.DiGraph()
 labels = {}
 contigs = graph.contigs()
+nkmers = len(graph.kmers)/2
+clens = []
+j = 0
 for c,l in contigs.iteritems():
   labels[c] = l[0]
   for edge in l[1]:
     G.add_edge(c,edge)
-  if len(l[0])>=50:
-    print c + "->" + str(l)
+  clen = len(l[0])
+  if clen>=50:
+    j += 1
+    clens.append(clen)
+    f.write('>c' + str(j) + '\n' + l[0] + '\n\n')
+
+f.close()
+ 
+clens.sort()
+
+i = len(clens)/2
+while sum(clens[:i])<((sum(clens)+1)/2):
+  i += 1
+          
+print 'No. kmers: ' + str(nkmers)
+print 'No. of nodes: ' + str(len(contigs))
+print 'No of contigs: ' + str(len(clens))
+print 'Combined contig length: ' + str(sum(clens))
+print 'Average contig length: ' + str(sum(clens)/len(clens))
+print 'Longest contig: ' + str(max(clens))
+print 'N50: ' + str(i)
 
 pos = nx.spring_layout(G)
 
 nx.draw_networkx_nodes(G, pos)
 nx.draw_networkx_edges(G, pos, arrows = True)    
-nx.draw_networkx_labels(G,pos)
+nx.draw_networkx_labels(G,pos, font_size=4)
 
 plt.show()  
