@@ -1,8 +1,11 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
 
 from Bio import SeqIO
 from Bio.Seq import Seq
 import sys
+import networkx as nx
+import matplotlib.pyplot as plt
+import copy
 
 from Bio import SeqIO
 import sys
@@ -43,43 +46,41 @@ class DeBruijn:
         continue
       g[k] = []
       for l in ['A', 'C', 'G', 'T']:
-        if k[1:]+l in self.kmers:
+        con = k[1:]+l 
+        if con in self.kmers and self.kmers[con] >= self.cut:
           g[k].append(k[1:]+l)
     return g            
   
+  def starts(self):
+    starts = []
+    graph = copy.deepcopy(self.graph)
+    while len(graph) > 0:
+      k,v = graph.popitem()    
+      kmer = k
+      links = v
+      while len(links)==1:
+        kmer = links[0]
+        links = graph.pop(kmer, [])
+    
+
+      rc = str(Seq(kmer).reverse_complement())
+      if not rc in starts:
+        starts.append(rc)
+    return starts
+
   def contigs(self):
-    comp = {'A':'T','C':'G','G':'C','T':'A'}
+    starts = self.starts()
     contigs = {}
-    while(len(self.graph)>1):
-       
-      origin,links = self.graph.popitem()
-      rc = str(Seq(origin).reverse_complement())
-      
-      back_links = self.graph[rc]
-
-      #go back untill find the start
-      while(len(back_links)==1):
-        rc = back_links[0]
-        back_links = self.graph[rc]
-
-      print rc
-      print back_links
-      contig = str(Seq(rc).reverse_complement())
-      if not contig == origin:
-        for_links = self.graph[contig]
-      
-        while (len(for_links)==1):
-          contig += for_links[0][-1]
-          links = self.graph.pop(links[0])
-      
-      
-      while(len(links)==1):
+    graph = copy.deepcopy(self.graph)
+    for s in starts:
+      contig = s
+      links = graph.pop(s,[])
+      while len(links)==1:
         contig += links[0][-1]
-        self.graph.pop(links[0],[])
-      
-      print contig
-      contigs[contig] = links
-    return contigs 
+        links = graph.pop(links[0],[])
+      contigs[s] = (contig,links)
+    return contigs
+    
 
 try:
   kvalue = int(sys.argv[2])
@@ -91,4 +92,20 @@ except IOError as e:
   print e
   sys.exit(1)
 
-graph.contigs()
+G = nx.DiGraph()
+labels = {}
+contigs = graph.contigs()
+for c,l in contigs.iteritems():
+  labels[c] = l[0]
+  for edge in l[1]:
+    G.add_edge(c,edge)
+  if len(l[0])>=50:
+    print c + "->" + str(l)
+
+pos = nx.spring_layout(G)
+
+nx.draw_networkx_nodes(G, pos)
+nx.draw_networkx_edges(G, pos, arrows = True)    
+nx.draw_networkx_labels(G,pos)
+
+plt.show()  
