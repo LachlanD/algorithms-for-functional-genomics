@@ -1,5 +1,9 @@
 #!/usr/bin/env python
 
+# Lachlan Dryburgh 188607
+# Comp90014 - Assignment 2 - Task 2 and 3
+# 13/09/2016
+
 from Bio import SeqIO
 from Bio.Seq import Seq
 import sys
@@ -20,65 +24,72 @@ class DeBruijn:
     return g_str     
 
   def kDict(self, reads):
+    # construct the kmer dictionary
     kmers = {}
     for r in reads:
       for i in xrange(len(r)-self.k+1):
         kmer = r.seq[i:i+self.k]
+        # Add both the kmer and its reverse complement to the dictionary
         rc = str(kmer.reverse_complement())
         kmer = str(kmer)
-        if kmer not in kmers:
-          kmers[kmer] = 1
-        else:
-          kmers[kmer] += 1
-        if rc not in kmers:
-          kmers[rc] = 1
-        else:
-          kmers[rc] += 1
+        kmers[kmer] = kmers.get(kmer, 0) + 1
+        kmers[rc] = kmers.get(rc, 0) + 1
     return kmers
     
   def graph(self):
     g = {}
     for k,v in self.kmers.iteritems():
+    # Apply the cutoff
       if v < self.cut:
         continue
       g[k] = []
+      # Add links if k-1 overlapping kmer exist
       for l in ['A', 'C', 'G', 'T']:
-        con = k[1:]+l 
-        if con in self.kmers and self.kmers[con] >= self.cut:
-          g[k].append(k[1:]+l)
+        con = k[1:]+l
+        # Shouldn't link to a kmer that is below the coverage cutoff
+        if self.kmers.get(con, 0) >= self.cut:
+          g[k].append(con)
     return g            
-  
-  def starts(self):
-    starts = []
-    graph = copy.deepcopy(self.graph)
-    while len(graph) > 0:
-      k,v = graph.popitem()    
-      kmer = k
-      links = v
-      while len(links)==1:
-        kmer = links[0]
-        links = graph.pop(kmer, [])
-    
 
-      rc = str(Seq(kmer).reverse_complement())
-      if not rc in starts:
-        starts.append(rc)
+# Find kmers that are the start of contigs
+  def starts(self):
+    starts = set([])
+    for k,v in self.graph.iteritems():
+      if not len(v)==1:
+        rc = str(Seq(k).reverse_complement())
+        for s in v:
+          #If a kmer is found that is linked to multiple kmers each of those links will start a new contig
+          starts.add(s)
+        if rc not in self.kmers:
+          print rc + " wasn't found in kmers"
+          sys.exit(1)
+        #If there is any other number than 1 outgoing links then the rc is a start
+        starts.add(rc)
     return starts
 
+# Construct contigs
   def contigs(self):
     starts = self.starts()
     contigs = {}
-    graph = copy.deepcopy(self.graph)
     for s in starts:
-      contig = s
-      links = graph.pop(s,[])
-      while len(links)==1:
-        contig += links[0][-1]
-        links = graph.pop(links[0],[])
-      contigs[s] = (contig,links)
+      if not s in self.graph:
+        print "start " + s + " not found"
+        sys.exit(1)
+      # Begin with the start kmers
+      kmer = s
+      contig = kmer
+      links = self.graph[kmer]
+      # Extend the contig with linked kmers until the number of links isn't 1
+      # or a new start kmer is reached 
+      while len(links)==1 and not links[0] in starts:
+        kmer = links[0]
+        contig += kmer[-1]
+        links = self.graph[kmer]
+      contigs[s] = (contig,links)      
+     
     return contigs
     
-
+# Parse file
 try:
   kvalue = int(sys.argv[2])
   cutoff = int(sys.argv[3])
@@ -93,34 +104,55 @@ f = open('reads.fa', 'w')
 G = nx.DiGraph()
 labels = {}
 contigs = graph.contigs()
-nkmers = len(graph.kmers)/2
+totalkmers = sum(graph.kmers.values())
+uniquekmers = len(graph.kmers)
+
 clens = []
 j = 0
 for c,l in contigs.iteritems():
+
+# Make a pretty graph
   labels[c] = l[0]
   for edge in l[1]:
     G.add_edge(c,edge)
   clen = len(l[0])
+
+# write contigs of length 50 or greater to file
   if clen>=50:
     j += 1
     clens.append(clen)
     f.write('>c' + str(j) + '\n' + l[0] + '\n\n')
 
+# Sanity check, should always find a reverse complement for a contig
+  rc = str(Seq(l[0]).reverse_complement())
+  if rc[:graph.k] in contigs:
+    if not rc == contigs[rc[:graph.k]][0]:
+      print l[0][:k] +  " didn't match the rc correctly"
+  else:
+    print "No contig found starting with rc kmer " + rc
+    
+    
+    
+  #else:
+  #  print 'match ' + l[0]
+
 f.close()
  
 clens.sort()
+
 
 i = len(clens)/2
 while sum(clens[:i])<((sum(clens)+1)/2):
   i += 1
           
-print 'No. kmers: ' + str(nkmers)
-print 'No. of nodes: ' + str(len(contigs))
-print 'No of contigs: ' + str(len(clens))
+print "Total kmers: " + str(totalkmers) + " (counting both the read and the reverse complement)"
+print "Unique kmers " + str(uniquekmers)
+print "No. of nodes: " + str(len(contigs))
+print 'No of contigs: ' + str(len(clens)) + " (length 50 or greater)"
 print 'Combined contig length: ' + str(sum(clens))
 print 'Average contig length: ' + str(sum(clens)/len(clens))
 print 'Longest contig: ' + str(max(clens))
-print 'N50: ' + str(i)
+print 'N50: ' + str(i) 
 
 pos = nx.spring_layout(G)
 
@@ -128,4 +160,6 @@ nx.draw_networkx_nodes(G, pos)
 nx.draw_networkx_edges(G, pos, arrows = True)    
 nx.draw_networkx_labels(G,pos, font_size=4)
 
-plt.show()  
+plt.show()
+
+

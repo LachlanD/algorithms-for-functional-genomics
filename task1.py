@@ -1,8 +1,13 @@
 #!/usr/bin/env python2
 
+# Lachlan Dryburgh 188607
+# COMP90014 - Assignment 2 - Task 1
+# 13/09/2016
+
 from Bio import SeqIO
 import sys
 
+# DeBruijn Graph class
 class DeBruijn:
   def __init__(self, reads, klength, cutoff):
     self.k = klength
@@ -15,6 +20,9 @@ class DeBruijn:
       g_str = g_str + str(k) + "->" + str(v) + "\n"
     return g_str     
 
+# Construct kmer dictionary 
+# I have choosen to increment bot the kmer and its reverse complement as 
+# keeping both is useful for ensuring the algorithm is working properly
   def kDict(self, reads):
     kmers = {}
     for r in reads:
@@ -22,16 +30,12 @@ class DeBruijn:
         kmer = r.seq[i:i+self.k]
         rc = str(kmer.reverse_complement())
         kmer = str(kmer)
-        if kmer not in kmers:
-          kmers[kmer] = 1
-        else:
-          kmers[kmer] += 1
-        if rc not in kmers:
-          kmers[rc] = 1
-        else:
-          kmers[rc] += 1
+        kmers[kmer] = kmers.get(kmer, 0) + 1
+        kmers[rc] = kmers.get(rc, 0) + 1
     return kmers
-    
+
+# Construct a graph by linking k-1 overlapping kmers
+# Cutoff is only applied in part 2    
   def graph(self):
     g = {}
     for k,v in self.kmers.iteritems():
@@ -41,6 +45,7 @@ class DeBruijn:
           g[k].append(k[1:]+l)
     return g            
 
+# Parser
 try:
   kvalue = int(sys.argv[2])
   cutoff = int(sys.argv[3])
@@ -51,5 +56,6 @@ except IOError as e:
   print e
   sys.exit(1)
 
+# print the DeBruijn graph, can redirect to file
 print graph
 
