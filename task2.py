@@ -121,6 +121,7 @@ uniquekmers = len(graph.kmers)
 
 clens = []
 j = 0
+p =[]
 for c,l in contigs.iteritems():
 
 # Make a pretty graph
@@ -130,9 +131,12 @@ for c,l in contigs.iteritems():
   clen = len(l[0])
 
 # write contigs of length 50 or greater to file
-  if clen>=50:
+# use p to prevent the printing and counting of reverse complements
+  if clen>=50 and not str(Seq(l[0]).reverse_complement()) in p  :
     j += 1
+    p.append(l[0])
     clens.append(clen)
+     
     f.write('>c' + str(j) + '\n' + l[0] + '\n\n')
 
 # Sanity check, should always find a reverse complement for a contig
