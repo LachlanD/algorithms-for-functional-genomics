@@ -9,7 +9,6 @@ from Bio.Seq import Seq
 import sys
 import networkx as nx
 import matplotlib.pyplot as plt
-import copy
 
 class DeBruijn:
   def __init__(self, reads, klength, cutoff):
@@ -132,7 +131,7 @@ for c,l in contigs.iteritems():
 
 # write contigs of length 50 or greater to file
 # use p to prevent the printing and counting of reverse complements
-  if clen>=50 and not str(Seq(l[0]).reverse_complement()) in p  :
+  if clen>=50 and not str(Seq(l[0]).reverse_complement()) in p:
     j += 1
     p.append(l[0])
     clens.append(clen)
