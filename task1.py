@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
 
 # Lachlan Dryburgh 188607
 # COMP90014 - Assignment 2 - Task 1

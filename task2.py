@@ -78,15 +78,27 @@ class DeBruijn:
       # Begin with the start kmers
       kmer = s
       contig = kmer
-      links = self.graph[kmer]
+      links = self.graph.pop(kmer)
       # Extend the contig with linked kmers until the number of links isn't 1
       # or a new start kmer is reached 
       while len(links)==1 and not links[0] in starts:
         kmer = links[0]
         contig += kmer[-1]
-        links = self.graph[kmer]
+        links = self.graph.pop(kmer)
       contigs[s] = (contig,links)      
-     
+    
+    #Any kmers remaing in the graph must be part of unbranched loops
+    while len(self.graph)>0:
+      # start at an arbitary kmer
+      start,link = self.graph.popitem()
+      contig = start
+      while len(link) == 1 and not link[0]==start:
+        # traverse the looped contig until reaching the starting kmer again  
+        contig += link[0][-1]
+        link = self.graph.pop(link[0], [])
+        
+      contigs[start] = (contig,link)
+
     return contigs
     
 # Parse file
@@ -124,12 +136,12 @@ for c,l in contigs.iteritems():
     f.write('>c' + str(j) + '\n' + l[0] + '\n\n')
 
 # Sanity check, should always find a reverse complement for a contig
-  rc = str(Seq(l[0]).reverse_complement())
-  if rc[:graph.k] in contigs:
-    if not rc == contigs[rc[:graph.k]][0]:
-      print l[0][:k] +  " didn't match the rc correctly"
-  else:
-    print "No contig found starting with rc kmer " + rc
+  #rc = str(Seq(l[0]).reverse_complement())
+  #if rc[:graph.k] in contigs:
+  #  if not rc == contigs[rc[:graph.k]][0]:
+  #    print l[0][:k] +  " didn't match the rc correctly"
+  #else:
+  #  print "No contig found starting with rc kmer " + rc
     
     
     
@@ -145,7 +157,6 @@ i = len(clens)/2
 while sum(clens[:i])<((sum(clens)+1)/2):
   i += 1
           
-print "Total kmers: " + str(totalkmers) + " (counting both the read and the reverse complement)"
 print "Unique kmers " + str(uniquekmers)
 print "No. of nodes: " + str(len(contigs))
 print 'No of contigs: ' + str(len(clens)) + " (length 50 or greater)"
